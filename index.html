@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>OIIA 고양이 도형 게임</title>
+  <style>
+    html, body {
+      margin: 0;
+      background: #111;
+      height: 100vh;
+      overflow: hidden;
+      cursor: none;
+      position: relative;
+    }
+    
+    .cat-popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1000;
+      display: none;
+      pointer-events: none;
+    }
+
+    .cat-cursor {
+      position: fixed;
+      width: 150px;
+      height: 150px;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .cat-cursor .tenor-gif-embed {
+      width: 100% !important;
+      height: 100% !important;
+      margin: 0 !important;
+      pointer-events: none !important;
+    }
+
+    #scoreBoard {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 24px;
+      font-weight: bold;
+      font-family: Arial, sans-serif;
+      z-index: 1000;
+      text-align: center;
+    }
+    
+    .coords {
+      position: absolute;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: monospace;
+      pointer-events: none;
+      z-index: 99;
+    }
+
+    .shape {
+      position: absolute;
+      border-radius: 50%;
+      cursor: pointer;
+      mix-blend-mode: lighten;
+    }
+  </style>
+</head>
+<body>
+  <!-- 커서용 Tenor GIF -->
+  <div id="catCursor" class="cat-cursor">
+    <div class="tenor-gif-embed" data-postid="14934872872258635476" data-share-method="host" data-aspect-ratio="1" data-width="100%"></div>
+    <script type="text/javascript" async src="https://tenor.com/embed.js"></script>
+  </div>
+  <div id="scoreBoard">Score: 0</div>
+  <div class="coords">X: 0, Y: 0</div>
+
+  <!-- OIIA OIIA 사운드 -->
+  <audio id="oiiaSound" preload="auto" src="https://www.myinstants.com/media/sounds/oiia-oiia.mp3"></audio>
+
+  <!-- GSAP 애니메이션 라이브러리 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/MotionPathPlugin.min.js"></script>
+
+  <script>
+    const cat = document.getElementById('catCursor');
+    const coords = document.querySelector('.coords');
+    const sound = document.getElementById('oiiaSound');
+    const scoreBoard = document.getElementById('scoreBoard');
+    let score = 0;
+    
+    // 커서 이미지 표시
+    cat.style.display = 'block';
+    
+    // 커서 초기 위치 설정
+    cat.style.position = 'fixed';
+    cat.style.left = '0px';
+    cat.style.top = '0px';
+    cat.style.pointerEvents = 'none'; // 클릭 이벤트 무시
+    
+    // 사운드 볼륨 설정
+    sound.volume = 1.0;
+    
+    // 사운드 재생 가능하도록 설정
+    document.addEventListener('click', function enableSound() {
+      sound.play().then(() => {
+        sound.pause();
+        sound.currentTime = 0;
+      }).catch(e => console.log("사운드 재생 오류:", e));
+      document.removeEventListener('click', enableSound);
+    });
+    
+    // 커서 초기 위치 설정
+    cat.style.position = 'fixed';
+    cat.style.left = '0px';
+    cat.style.top = '0px';
+    cat.style.pointerEvents = 'none';
+    
+    // 사운드 볼륨 설정
+    sound.volume = 1.0;
+    
+    // 사운드 재생 가능하도록 설정
+    document.addEventListener('click', function enableSound() {
+      sound.play().then(() => {
+        sound.pause();
+        sound.currentTime = 0;
+      }).catch(e => console.log("사운드 재생 오류:", e));
+      document.removeEventListener('click', enableSound);
+    });
+
+    document.addEventListener('mousemove', e => {
+      const x = e.clientX;
+      const y = e.clientY;
+
+      // 고양이 이미지 위치 업데이트
+      cat.style.transform = `translate(${x}px, ${y}px)`;
+
+      gsap.to(coords, {
+        x: x + 20,
+        y: y - 20,
+        duration: 0.1
+      });
+
+      coords.innerHTML = `X: ${x}, Y: ${y}`;
+    });
+
+    // 도형 생성
+    const NUM_SHAPES = 25;
+
+    function randomColor() {
+      const colors = ['hotpink', 'deepskyblue', 'lime', 'orange', 'violet', 'gold', 'aqua', 'crimson', 'turquoise', 'salmon'];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    function createShape() {
+      const shape = document.createElement('div');
+      shape.classList.add('shape');
+
+      const size = Math.random() * 40 + 30;
+      shape.style.width = `${size}px`;
+      shape.style.height = `${size}px`;
+      shape.style.backgroundColor = randomColor();
+
+      const startX = Math.random() * (window.innerWidth - size);
+      const startY = Math.random() * (window.innerHeight - size);
+
+      shape.style.left = `${startX}px`;
+      shape.style.top = `${startY}px`;
+
+      document.body.appendChild(shape);
+
+      // 무작위 경로 생성
+      const createRandomPath = (points = 5) => {
+        const path = [];
+        for (let i = 0; i < points; i++) {
+          path.push({
+            x: (Math.random() - 0.5) * 400, // -200 ~ 200 범위
+            y: (Math.random() - 0.5) * 400  // -200 ~ 200 범위
+          });
+        }
+        // 시작점으로 돌아오기
+        path.push({...path[0]});
+        return path;
+      };
+
+      // 무작위 속도 (2~5초)
+      const duration = 2 + Math.random() * 3;
+      
+      // 모션 경로 애니메이션
+      gsap.to(shape, {
+        motionPath: {
+          path: createRandomPath(3 + Math.floor(Math.random() * 4)), // 3~6개의 포인트
+          type: "cubic",
+          autoRotate: true
+        },
+        duration: duration,
+        repeat: -1,
+        ease: "sine.inOut"
+      });
+
+      // 클릭 시 팡! 터짐 + oiiaoiia 소리 (2초 재생) + 고양이 이미지 표시
+      shape.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        // 스코어 증가 및 표시 (10점씩 증가)
+        score += 10;
+        scoreBoard.textContent = `Score: ${score}`;
+        
+        // Tenor GIF 표시
+        const tenorContainer = document.createElement('div');
+        tenorContainer.className = 'cat-popup';
+        tenorContainer.style.width = '300px';
+        tenorContainer.style.height = '300px';
+        tenorContainer.style.overflow = 'hidden';
+        tenorContainer.style.display = 'flex';
+        tenorContainer.style.justifyContent = 'center';
+        tenorContainer.style.alignItems = 'center';
+        
+        const tenorEmbed = document.createElement('div');
+        tenorEmbed.className = 'tenor-gif-embed';
+        tenorEmbed.setAttribute('data-postid', '14934872872258635476');
+        tenorEmbed.setAttribute('data-share-method', 'host');
+        tenorEmbed.setAttribute('data-aspect-ratio', '1');
+        tenorEmbed.setAttribute('data-width', '100%');
+        
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.async = true;
+        script.src = 'https://tenor.com/embed.js';
+        
+        tenorContainer.appendChild(tenorEmbed);
+        document.body.appendChild(tenorContainer);
+        document.body.appendChild(script);
+        
+        // 2초 후에 제거
+        setTimeout(() => {
+          tenorContainer.remove();
+          script.remove();
+        }, 2000);
+        
+        // 사운드 재생 (사용자 상호작용 후에만 재생 가능)
+        sound.currentTime = 0;
+        const playPromise = sound.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            // 2초 후에 일시정지
+            setTimeout(() => {
+              sound.pause();
+            }, 2000);
+          }).catch(error => {
+            console.log("소리 재생 오류:", error);
+          });
+        }
+
+        gsap.to(shape, {
+          scale: 2,
+          opacity: 0,
+          duration: 0.4,
+          ease: "back.in(2)",
+          onComplete: () => {
+            shape.remove();
+            setTimeout(createShape, 800);
+          }
+        });
+      });
+    }
+
+    for (let i = 0; i < NUM_SHAPES; i++) {
+      createShape();
+    }
+  </script>
+</body>
+</html>
